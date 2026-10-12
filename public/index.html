@@ -81,8 +81,9 @@
     <header>
         <h1>Análises Esportivas</h1>
         <div style="display: flex; gap: 15px;">
-            <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
-            <button class="icon-btn">🔍</button>
+            <!-- Adicionado type="button" para evitar recarregamento -->
+            <button type="button" class="icon-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
+            <button type="button" class="icon-btn">🔍</button>
         </div>
     </header>
 
@@ -108,7 +109,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Detalhes da Partida</h2>
-                <button class="close-btn" onclick="fecharModal()">&times;</button>
+                <button type="button" class="close-btn" onclick="fecharModal()">&times;</button>
             </div>
             <div id="conteudo-modal">
                 <div class="loading">Carregando estatísticas...</div>
@@ -119,37 +120,41 @@
     <script>
         let todosOsJogos = [];
         let abaAtual = 'AO VIVO';
-        let favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || [];
+        let favoritos = [];
 
-        // Função para alternar Tema
+        // Carrega os favoritos com segurança
+        try {
+            favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || [];
+        } catch (e) {
+            console.warn('localStorage não disponível para favoritos');
+        }
+
         function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            const isLight = document.body.classList.contains('light-mode');
-            document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
-            localStorage.setItem('temaClaro', isLight ? 'true' : 'false');
+            try {
+                document.body.classList.toggle('light-mode');
+                const isLight = document.body.classList.contains('light-mode');
+                document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+                localStorage.setItem('temaClaro', isLight ? 'true' : 'false');
+            } catch (e) {
+                console.warn('localStorage não disponível para tema');
+            }
         }
 
-        // Carregar tema salvo
-        if (localStorage.getItem('temaClaro') === 'true') {
-            document.body.classList.add('light-mode');
-            document.getElementById('theme-btn').textContent = '🌙';
-        } else {
-            document.getElementById('theme-btn').textContent = '☀️';
-        }
-
-        // Função para favoritar time
         function toggleFavorito(event, timeCasa, timeFora) {
-            event.stopPropagation(); // Impede de abrir o modal do jogo
-            
-            const indexCasa = favoritos.indexOf(timeCasa);
-            const indexFora = favoritos.indexOf(timeFora);
+            event.stopPropagation();
+            try {
+                const indexCasa = favoritos.indexOf(timeCasa);
+                const indexFora = favoritos.indexOf(timeFora);
 
-            if (indexCasa > -1) favoritos.splice(indexCasa, 1);
-            else if (indexFora > -1) favoritos.splice(indexFora, 1);
-            else favoritos.push(timeCasa, timeFora); // Favorita os dois times da partida
+                if (indexCasa > -1) favoritos.splice(indexCasa, 1);
+                else if (indexFora > -1) favoritos.splice(indexFora, 1);
+                else favoritos.push(timeCasa, timeFora);
 
-            localStorage.setItem('favoritosEsportes', JSON.stringify(favoritos));
-            renderizarJogos(); // Recarrega a tela
+                localStorage.setItem('favoritosEsportes', JSON.stringify(favoritos));
+                renderizarJogos();
+            } catch (e) {
+                console.warn('Erro ao salvar favorito');
+            }
         }
 
         async function carregarJogos() {
@@ -222,7 +227,6 @@
                     const placarFora = jogo.golsFora !== null ? jogo.golsFora : '-';
                     const classeStatus = 'status-' + jogo.statusTraduzido.replace(' ', '-');
                     
-                    // Verifica se é favorito
                     const isFav = favoritos.includes(jogo.timeCasa) || favoritos.includes(jogo.timeFora);
                     const estrela = isFav ? '★' : '☆';
                     const classeEstrela = isFav ? 'fav-btn active' : 'fav-btn';
@@ -301,7 +305,21 @@
             if (event.target === modal) fecharModal();
         }
 
-        carregarJogos();
+        // Garante que o tema e os jogos carreguem somente depois que a página estiver pronta
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                if (localStorage.getItem('temaClaro') === 'true') {
+                    document.body.classList.add('light-mode');
+                    document.getElementById('theme-btn').textContent = '🌙';
+                } else {
+                    document.getElementById('theme-btn').textContent = '☀️';
+                }
+            } catch (e) {
+                document.getElementById('theme-btn').textContent = '☀️';
+            }
+            
+            carregarJogos();
+        });
     </script>
 </body>
-</html>
+    </html>
