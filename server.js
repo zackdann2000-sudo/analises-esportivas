@@ -1,9 +1,14 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Serve os arquivos da pasta 'public'
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Rota principal
 app.get('/', (req, res) => {
-  res.send('<h1 style="color:green; text-align:center; margin-top:50px;">Servidor funcionando perfeitamente!</h1><p style="text-align:center;">Agora vamos adicionar o visual do app.</p>');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
