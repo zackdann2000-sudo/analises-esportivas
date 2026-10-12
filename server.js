@@ -16,9 +16,12 @@ app.get('/', (req, res) => {
 app.get('/api/jogos', async (req, res) => {
   try {
     const apiKey = process.env.FOOTBALL_API_KEY;
+    if (!apiKey) {
+        return res.status(500).json({ erro: 'Chave da API não configurada no Render.' });
+    }
     
-    // Faz a requisição para a API (Buscando jogos da Champions League como teste)
-    const resposta = await axios.get('https://api.football-data.org/v4/competitions/CL/matches', {
+    // Usando BSA (Brasileirão Série A) que está disponível no plano gratuito
+    const resposta = await axios.get('https://api.football-data.org/v4/competitions/BSA/matches', {
       headers: { 'X-Auth-Token': apiKey }
     });
 
@@ -37,7 +40,14 @@ app.get('/api/jogos', async (req, res) => {
     res.json(jogos);
   } catch (erro) {
     console.error('Erro ao buscar API:', erro.message);
-    res.status(500).json({ erro: 'Falha ao buscar dados reais' });
+    
+    // Captura o erro exato da API para nos ajudar a debugar
+    let detalheErro = erro.message;
+    if (erro.response) {
+        detalheErro = `Status ${erro.response.status}: ${erro.response.data.message || erro.message}`;
+    }
+    
+    res.status(500).json({ erro: 'Falha ao buscar dados reais', detalhe: detalheErro });
   }
 });
 
