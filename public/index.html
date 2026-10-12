@@ -53,21 +53,26 @@
     </div>
 
     <script>
-        // Função para buscar os dados reais do nosso servidor
         async function carregarJogos() {
             try {
                 const resposta = await fetch('/api/jogos');
                 const jogos = await resposta.json();
                 
                 const container = document.getElementById('lista-jogos');
-                container.innerHTML = ''; // Limpa o "Carregando..."
+                container.innerHTML = ''; 
 
-                if (jogos.length === 0 || jogos.erro) {
-                    container.innerHTML = '<div class="loading">Nenhum jogo encontrado ou erro na API.</div>';
+                // Se a API retornar um erro, mostra exatamente qual foi o erro na tela
+                if (jogos.erro) {
+                    container.innerHTML = `<div class="loading" style="color: #ff5252;">Erro: ${jogos.detalhe || jogos.erro}</div>`;
                     return;
                 }
 
-                // Agrupar por liga (simplificado)
+                if (jogos.length === 0) {
+                    container.innerHTML = '<div class="loading">Nenhum jogo encontrado para esta liga hoje.</div>';
+                    return;
+                }
+
+                // Agrupar por liga
                 const ligas = {};
                 jogos.forEach(jogo => {
                     if (!ligas[jogo.liga]) ligas[jogo.liga] = [];
@@ -104,16 +109,15 @@
                                 </div>
                             </div>
                         `;
-                        container.appendChild(div);
+                        container.appendChild(card);
                     });
                 }
             } catch (erro) {
                 console.error('Erro ao carregar jogos:', erro);
-                document.getElementById('lista-jogos').innerHTML = '<div class="loading">Erro ao conectar com o servidor.</div>';
+                document.getElementById('lista-jogos').innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao conectar com o servidor.</div>';
             }
         }
 
-        // Chama a função assim que a página abrir
         carregarJogos();
     </script>
 </body>
