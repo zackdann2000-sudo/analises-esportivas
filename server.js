@@ -4,15 +4,12 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve a pasta public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota principal
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// NOVA ROTA: Buscar jogos reais da API
 app.get('/api/jogos', async (req, res) => {
   try {
     const apiKey = process.env.FOOTBALL_API_KEY;
@@ -20,19 +17,31 @@ app.get('/api/jogos', async (req, res) => {
         return res.status(500).json({ erro: 'Chave da API não configurada no Render.' });
     }
     
-    // Usando BSA (Brasileirão Série A) que está disponível no plano gratuito
+    // Busca os jogos do Brasileirão
     const resposta = await axios.get('https://api.football-data.org/v4/competitions/BSA/matches', {
       headers: { 'X-Auth-Token': apiKey }
     });
 
-    // Filtra apenas as informações que precisamos para o frontend
+    // Dicionário para traduzir os status
+    const traduzirStatus = {
+      'SCHEDULED': 'AGENDADO',
+      'TIMED': 'AGENDADO',
+      'IN_PLAY': 'AO VIVO',
+      'PAUSED': 'INTERVALO',
+      'FINISHED': 'FINALIZADO',
+      'POSTPONED': 'ADIADO',
+      'SUSPENDED': 'SUSPENSO',
+      'CANCELED': 'CANCELADO'
+    };
+
     const jogos = resposta.data.matches.map(jogo => ({
       id: jogo.id,
       timeCasa: jogo.homeTeam.name || 'Time A',
       timeFora: jogo.awayTeam.name || 'Time B',
       golsCasa: jogo.score.fullTime.home,
       golsFora: jogo.score.fullTime.away,
-      status: jogo.status,
+      statusOriginal: jogo.status, // Usado para o filtro no frontend
+      statusTraduzido: traduzirStatus[jogo.status] || jogo.status,
       data: jogo.utcDate,
       liga: jogo.competition.name
     }));
@@ -40,13 +49,10 @@ app.get('/api/jogos', async (req, res) => {
     res.json(jogos);
   } catch (erro) {
     console.error('Erro ao buscar API:', erro.message);
-    
-    // Captura o erro exato da API para nos ajudar a debugar
     let detalheErro = erro.message;
     if (erro.response) {
         detalheErro = `Status ${erro.response.status}: ${erro.response.data.message || erro.message}`;
     }
-    
     res.status(500).json({ erro: 'Falha ao buscar dados reais', detalhe: detalheErro });
   }
 });
