@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Análises Esportivas</title>
+    
+    <!-- SCRIPT PARA CORRIGIR O PISCAR DO TEMA (FOUC) -->
+    <script>
+        // Verifica o tema ANTES da página renderizar
+        if (localStorage.getItem('temaClaro') === 'true') {
+            document.documentElement.classList.add('light-mode');
+        }
+    </script>
+
     <style>
         /* Variáveis de Tema */
         :root {
@@ -16,7 +25,8 @@
             --league-bg: #1a1a1a;
         }
 
-        .light-mode {
+        /* Aplicado ao HTML para não piscar */
+        html.light-mode {
             --bg-color: #f5f5f5;
             --card-bg: #ffffff;
             --text-color: #121212;
@@ -28,10 +38,16 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-color); padding-bottom: 60px; transition: background 0.3s, color 0.3s; }
-        header { background-color: var(--header-bg); padding: 15px; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+        header { background-color: var(--header-bg); padding: 15px; position: sticky; top: 0; z-index: 100; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--border-color); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
         header h1 { font-size: 18px; color: #00e676; font-weight: bold; }
         .icon-btn { background: none; border: none; color: var(--text-color); font-size: 20px; cursor: pointer; }
         
+        /* Barra de Busca */
+        .busca-container { display: none; }
+        .busca-container input { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); font-size: 14px; outline: none; }
+        .busca-container input::placeholder { color: var(--text-muted); }
+
         .tabs { display: flex; overflow-x: auto; background-color: var(--header-bg); padding: 10px 15px; gap: 15px; border-bottom: 1px solid var(--border-color); }
         .tabs span { font-size: 14px; color: var(--text-muted); white-space: nowrap; cursor: pointer; padding-bottom: 5px; }
         .tabs span.active { color: #00e676; border-bottom: 2px solid #00e676; font-weight: bold; }
@@ -53,7 +69,6 @@
         .team-name { font-weight: 500; display: flex; align-items: center; gap: 8px; }
         .score { font-weight: bold; font-size: 16px; background-color: var(--border-color); padding: 2px 8px; border-radius: 4px; }
         
-        /* Botão de Favorito */
         .fav-btn { cursor: pointer; font-size: 18px; color: #666; transition: color 0.2s; }
         .fav-btn.active { color: #ffca28; }
 
@@ -65,7 +80,6 @@
         .loading { text-align: center; padding: 20px; color: var(--text-muted); }
         .empty-message { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 
-        /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; }
         .modal-content { background-color: var(--card-bg); width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
@@ -79,11 +93,17 @@
 <body>
 
     <header>
-        <h1>Análises Esportivas</h1>
-        <div style="display: flex; gap: 15px;">
-            <!-- Adicionado type="button" para evitar recarregamento -->
-            <button type="button" class="icon-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
-            <button type="button" class="icon-btn">🔍</button>
+        <div class="header-top">
+            <h1>Análises Esportivas</h1>
+            <div style="display: flex; gap: 15px;">
+                <button type="button" class="icon-btn" onclick="toggleTheme(event)">☀️</button>
+                <button type="button" class="icon-btn" onclick="toggleBusca()">🔍</button>
+            </div>
+        </div>
+        
+        <!-- Campo de Busca (Oculto por padrão) -->
+        <div class="busca-container" id="busca-container">
+            <input type="text" id="input-busca" placeholder="Buscar time... (ex: Flamengo)" oninput="filtrarPorBusca()">
         </div>
     </header>
 
@@ -104,7 +124,6 @@
         <div class="nav-item"><span>👤</span>Perfil</div>
     </div>
 
-    <!-- Modal de Detalhes -->
     <div class="modal" id="modal-detalhes">
         <div class="modal-content">
             <div class="modal-header">
@@ -121,23 +140,41 @@
         let todosOsJogos = [];
         let abaAtual = 'AO VIVO';
         let favoritos = [];
+        let termoBusca = '';
 
-        // Carrega os favoritos com segurança
-        try {
-            favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || [];
-        } catch (e) {
-            console.warn('localStorage não disponível para favoritos');
+        try { favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || []; } catch(e) {}
+        
+        // Atualiza o ícone do tema correto ao carregar
+        window.addEventListener('DOMContentLoaded', () => {
+            const isLight = document.documentElement.classList.contains('light-mode');
+            document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+            carregarJogos();
+        });
+
+        function toggleTheme(event) {
+            event.preventDefault();
+            const isLight = document.documentElement.classList.toggle('light-mode');
+            document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+            localStorage.setItem('temaClaro', isLight ? 'true' : 'false');
         }
 
-        function toggleTheme() {
-            try {
-                document.body.classList.toggle('light-mode');
-                const isLight = document.body.classList.contains('light-mode');
-                document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
-                localStorage.setItem('temaClaro', isLight ? 'true' : 'false');
-            } catch (e) {
-                console.warn('localStorage não disponível para tema');
+        function toggleBusca() {
+            const container = document.getElementById('busca-container');
+            const input = document.getElementById('input-busca');
+            if (container.style.display === 'none' || container.style.display === '') {
+                container.style.display = 'block';
+                input.focus();
+            } else {
+                container.style.display = 'none';
+                input.value = '';
+                termoBusca = '';
+                renderizarJogos();
             }
+        }
+
+        function filtrarPorBusca() {
+            termoBusca = document.getElementById('input-busca').value.toLowerCase();
+            renderizarJogos();
         }
 
         function toggleFavorito(event, timeCasa, timeFora) {
@@ -145,31 +182,24 @@
             try {
                 const indexCasa = favoritos.indexOf(timeCasa);
                 const indexFora = favoritos.indexOf(timeFora);
-
                 if (indexCasa > -1) favoritos.splice(indexCasa, 1);
                 else if (indexFora > -1) favoritos.splice(indexFora, 1);
                 else favoritos.push(timeCasa, timeFora);
-
                 localStorage.setItem('favoritosEsportes', JSON.stringify(favoritos));
                 renderizarJogos();
-            } catch (e) {
-                console.warn('Erro ao salvar favorito');
-            }
+            } catch (e) {}
         }
 
         async function carregarJogos() {
             try {
                 const resposta = await fetch('/api/jogos');
                 const dados = await resposta.json();
-                
                 if (dados.erro) {
                     document.getElementById('lista-jogos').innerHTML = `<div class="loading" style="color: #ff5252;">Erro: ${dados.detalhe || dados.erro}</div>`;
                     return;
                 }
-
                 todosOsJogos = dados;
                 renderizarJogos();
-
             } catch (erro) {
                 document.getElementById('lista-jogos').innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao conectar com o servidor.</div>';
             }
@@ -193,6 +223,14 @@
             const dataAmanhaStr = amanha.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
             const jogosFiltrados = todosOsJogos.filter(jogo => {
+                // Filtro de Busca
+                if (termoBusca) {
+                    const casaMatch = jogo.timeCasa.toLowerCase().includes(termoBusca);
+                    const foraMatch = jogo.timeFora.toLowerCase().includes(termoBusca);
+                    if (!casaMatch && !foraMatch) return false;
+                }
+
+                // Filtro de Abas
                 const dataJogo = new Date(jogo.data);
                 const dataJogoStr = dataJogo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
                 
@@ -204,7 +242,7 @@
             });
 
             if (jogosFiltrados.length === 0) {
-                const msg = abaAtual === 'FAVORITOS' ? 'Você ainda não favoritou nenhum time. Clique na estrela ⭐ nos jogos.' : `Nenhum jogo encontrado para a aba "${abaAtual}".`;
+                const msg = termoBusca ? `Nenhum jogo encontrado para "${termoBusca}".` : (abaAtual === 'FAVORITOS' ? 'Você ainda não favoritou nenhum time.' : `Nenhum jogo encontrado para a aba "${abaAtual}".`);
                 container.innerHTML = `<div class="empty-message">${msg}</div>`;
                 return;
             }
@@ -266,16 +304,13 @@
             const conteudo = document.getElementById('conteudo-modal');
             modal.style.display = 'flex';
             conteudo.innerHTML = '<div class="loading">Carregando estatísticas da partida...</div>';
-
             try {
                 const resposta = await fetch(`/api/jogo/${idJogo}`);
                 const stats = await resposta.json();
-
                 if (stats.erro) {
                     conteudo.innerHTML = `<div class="loading" style="color: #ff5252;">Erro: ${stats.detalhe || stats.erro}</div>`;
                     return;
                 }
-
                 conteudo.innerHTML = `
                     <div style="text-align: center; margin-bottom: 20px;">
                         <h3 style="font-size: 16px; margin-bottom: 5px;">${stats.timeCasa} x ${stats.timeFora}</h3>
@@ -290,7 +325,6 @@
                     <div class="stat-row"><span class="stat-label">Substituições (Fora)</span><span class="stat-value">${stats.subsFora}</span></div>
                     <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">* Algumas estatísticas podem não estar disponíveis no plano gratuito da API.</p>
                 `;
-
             } catch (erro) {
                 conteudo.innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao carregar detalhes.</div>';
             }
@@ -304,22 +338,6 @@
             const modal = document.getElementById('modal-detalhes');
             if (event.target === modal) fecharModal();
         }
-
-        // Garante que o tema e os jogos carreguem somente depois que a página estiver pronta
-        window.addEventListener('DOMContentLoaded', () => {
-            try {
-                if (localStorage.getItem('temaClaro') === 'true') {
-                    document.body.classList.add('light-mode');
-                    document.getElementById('theme-btn').textContent = '🌙';
-                } else {
-                    document.getElementById('theme-btn').textContent = '☀️';
-                }
-            } catch (e) {
-                document.getElementById('theme-btn').textContent = '☀️';
-            }
-            
-            carregarJogos();
-        });
     </script>
 </body>
-    </html>
+</html>
