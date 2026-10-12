@@ -3,18 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Bloqueia o cache para o celular sempre baixar a versão nova -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Análises Esportivas</title>
     
-    <!-- SCRIPT PARA CORRIGIR O PISCAR DO TEMA (FOUC) -->
+    <!-- SCRIPT DE TEMA NO TOPO PARA NÃO PISCAR -->
     <script>
-        // Verifica o tema ANTES da página renderizar
-        if (localStorage.getItem('temaClaro') === 'true') {
-            document.documentElement.classList.add('light-mode');
-        }
+        try {
+            if (localStorage.getItem('temaClaro') === 'true') {
+                document.documentElement.classList.add('light-mode');
+            }
+        } catch (e) { console.warn('LocalStorage bloqueado'); }
     </script>
 
     <style>
-        /* Variáveis de Tema */
         :root {
             --bg-color: #121212;
             --card-bg: #1e1e1e;
@@ -25,7 +29,6 @@
             --league-bg: #1a1a1a;
         }
 
-        /* Aplicado ao HTML para não piscar */
         html.light-mode {
             --bg-color: #f5f5f5;
             --card-bg: #ffffff;
@@ -43,7 +46,6 @@
         header h1 { font-size: 18px; color: #00e676; font-weight: bold; }
         .icon-btn { background: none; border: none; color: var(--text-color); font-size: 20px; cursor: pointer; }
         
-        /* Barra de Busca */
         .busca-container { display: none; }
         .busca-container input { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); font-size: 14px; outline: none; }
         .busca-container input::placeholder { color: var(--text-muted); }
@@ -66,7 +68,9 @@
         
         .teams { display: flex; flex-direction: column; gap: 8px; }
         .team-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
-        .team-name { font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .team-name { font-weight: 500; }
+        .team-clickable { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; transition: color 0.2s; }
+        .team-clickable:hover { color: #42a5f5; text-decoration-color: #42a5f5; }
         .score { font-weight: bold; font-size: 16px; background-color: var(--border-color); padding: 2px 8px; border-radius: 4px; }
         
         .fav-btn { cursor: pointer; font-size: 18px; color: #666; transition: color 0.2s; }
@@ -81,13 +85,14 @@
         .empty-message { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; }
-        .modal-content { background-color: var(--card-bg); width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; position: relative; }
+        .modal-content { background-color: var(--card-bg); width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
         .modal-header h2 { font-size: 16px; color: #00e676; }
         .close-btn { background: none; border: none; color: var(--text-color); font-size: 24px; cursor: pointer; }
         .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         .stat-label { color: var(--text-muted); }
         .stat-value { font-weight: bold; }
+        .historico-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 13px; }
     </style>
 </head>
 <body>
@@ -96,12 +101,10 @@
         <div class="header-top">
             <h1>Análises Esportivas</h1>
             <div style="display: flex; gap: 15px;">
-                <button type="button" class="icon-btn" onclick="toggleTheme(event)">☀️</button>
+                <button type="button" class="icon-btn" id="theme-btn" onclick="toggleTheme(event)">☀️</button>
                 <button type="button" class="icon-btn" onclick="toggleBusca()">🔍</button>
             </div>
         </div>
-        
-        <!-- Campo de Busca (Oculto por padrão) -->
         <div class="busca-container" id="busca-container">
             <input type="text" id="input-busca" placeholder="Buscar time... (ex: Flamengo)" oninput="filtrarPorBusca()">
         </div>
@@ -111,6 +114,7 @@
         <span class="active" onclick="mudarAba('AO VIVO', this)">AO VIVO</span>
         <span onclick="mudarAba('HOJE', this)">HOJE</span>
         <span onclick="mudarAba('AMANHA', this)">AMANHÃ</span>
+        <span onclick="mudarAba('FINALIZADOS', this)">FINALIZADOS</span>
         <span onclick="mudarAba('FAVORITOS', this)">FAVORITOS</span>
     </div>
 
@@ -124,15 +128,25 @@
         <div class="nav-item"><span>👤</span>Perfil</div>
     </div>
 
+    <!-- Modal de Detalhes do Jogo -->
     <div class="modal" id="modal-detalhes">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Detalhes da Partida</h2>
-                <button type="button" class="close-btn" onclick="fecharModal()">&times;</button>
+                <button type="button" class="close-btn" onclick="fecharModal('modal-detalhes')">&times;</button>
             </div>
-            <div id="conteudo-modal">
-                <div class="loading">Carregando estatísticas...</div>
+            <div id="conteudo-modal"><div class="loading">Carregando...</div></div>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico do Time -->
+    <div class="modal" id="modal-time">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="titulo-time">Últimos Jogos</h2>
+                <button type="button" class="close-btn" onclick="fecharModal('modal-time')">&times;</button>
             </div>
+            <div id="conteudo-time"><div class="loading">Carregando...</div></div>
         </div>
     </div>
 
@@ -143,8 +157,8 @@
         let termoBusca = '';
 
         try { favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || []; } catch(e) {}
-        
-        // Atualiza o ícone do tema correto ao carregar
+
+        // Inicializa
         window.addEventListener('DOMContentLoaded', () => {
             const isLight = document.documentElement.classList.contains('light-mode');
             document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
@@ -155,7 +169,7 @@
             event.preventDefault();
             const isLight = document.documentElement.classList.toggle('light-mode');
             document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
-            localStorage.setItem('temaClaro', isLight ? 'true' : 'false');
+            try { localStorage.setItem('temaClaro', isLight ? 'true' : 'false'); } catch(e) {}
         }
 
         function toggleBusca() {
@@ -201,7 +215,7 @@
                 todosOsJogos = dados;
                 renderizarJogos();
             } catch (erro) {
-                document.getElementById('lista-jogos').innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao conectar com o servidor.</div>';
+                document.getElementById('lista-jogos').innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao conectar.</div>';
             }
         }
 
@@ -223,26 +237,23 @@
             const dataAmanhaStr = amanha.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
             const jogosFiltrados = todosOsJogos.filter(jogo => {
-                // Filtro de Busca
                 if (termoBusca) {
-                    const casaMatch = jogo.timeCasa.toLowerCase().includes(termoBusca);
-                    const foraMatch = jogo.timeFora.toLowerCase().includes(termoBusca);
-                    if (!casaMatch && !foraMatch) return false;
+                    if (!jogo.timeCasa.toLowerCase().includes(termoBusca) && !jogo.timeFora.toLowerCase().includes(termoBusca)) return false;
                 }
 
-                // Filtro de Abas
                 const dataJogo = new Date(jogo.data);
                 const dataJogoStr = dataJogo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
                 
                 if (abaAtual === 'AO VIVO') return jogo.statusOriginal === 'IN_PLAY' || jogo.statusOriginal === 'PAUSED';
                 if (abaAtual === 'HOJE') return dataJogoStr === dataHojeStr;
                 if (abaAtual === 'AMANHA') return dataJogoStr === dataAmanhaStr;
+                if (abaAtual === 'FINALIZADOS') return jogo.statusOriginal === 'FINISHED';
                 if (abaAtual === 'FAVORITOS') return favoritos.includes(jogo.timeCasa) || favoritos.includes(jogo.timeFora);
                 return false;
             });
 
             if (jogosFiltrados.length === 0) {
-                const msg = termoBusca ? `Nenhum jogo encontrado para "${termoBusca}".` : (abaAtual === 'FAVORITOS' ? 'Você ainda não favoritou nenhum time.' : `Nenhum jogo encontrado para a aba "${abaAtual}".`);
+                const msg = termoBusca ? `Nenhum jogo encontrado para "${termoBusca}".` : `Nenhum jogo na aba "${abaAtual}". Se for "AO VIVO", pode não haver jogos agora.`;
                 container.innerHTML = `<div class="empty-message">${msg}</div>`;
                 return;
             }
@@ -279,14 +290,14 @@
                         </div>
                         <div class="teams">
                             <div class="team-row">
-                                <span class="team-name">${jogo.timeCasa}</span>
+                                <span class="team-name team-clickable" onclick="abrirTime(event, ${jogo.timeCasaId}, '${jogo.timeCasa}')">${jogo.timeCasa}</span>
                                 <div style="display: flex; gap: 10px; align-items: center;">
                                     <span class="${classeEstrela}" onclick="toggleFavorito(event, '${jogo.timeCasa}', '${jogo.timeFora}')">${estrela}</span>
                                     <span class="score">${placarCasa}</span>
                                 </div>
                             </div>
                             <div class="team-row">
-                                <span class="team-name">${jogo.timeFora}</span>
+                                <span class="team-name team-clickable" onclick="abrirTime(event, ${jogo.timeForaId}, '${jogo.timeFora}')">${jogo.timeFora}</span>
                                 <div style="display: flex; gap: 10px; align-items: center;">
                                     <span class="${classeEstrela}" onclick="toggleFavorito(event, '${jogo.timeCasa}', '${jogo.timeFora}')">${estrela}</span>
                                     <span class="score">${placarFora}</span>
@@ -303,7 +314,7 @@
             const modal = document.getElementById('modal-detalhes');
             const conteudo = document.getElementById('conteudo-modal');
             modal.style.display = 'flex';
-            conteudo.innerHTML = '<div class="loading">Carregando estatísticas da partida...</div>';
+            conteudo.innerHTML = '<div class="loading">Carregando...</div>';
             try {
                 const resposta = await fetch(`/api/jogo/${idJogo}`);
                 const stats = await resposta.json();
@@ -323,21 +334,30 @@
                     <div class="stat-row"><span class="stat-label">Cartões (Fora)</span><span class="stat-value">${stats.cartoesFora}</span></div>
                     <div class="stat-row"><span class="stat-label">Substituições (Casa)</span><span class="stat-value">${stats.subsCasa}</span></div>
                     <div class="stat-row"><span class="stat-label">Substituições (Fora)</span><span class="stat-value">${stats.subsFora}</span></div>
-                    <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">* Algumas estatísticas podem não estar disponíveis no plano gratuito da API.</p>
+                    <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">* Dados limitados no plano gratuito da API.</p>
                 `;
             } catch (erro) {
-                conteudo.innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao carregar detalhes.</div>';
+                conteudo.innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao carregar.</div>';
             }
         }
 
-        function fecharModal() {
-            document.getElementById('modal-detalhes').style.display = 'none';
-        }
+        async function abrirTime(event, timeId, nomeTime) {
+            event.stopPropagation();
+            const modal = document.getElementById('modal-time');
+            const conteudo = document.getElementById('conteudo-time');
+            const titulo = document.getElementById('titulo-time');
+            
+            modal.style.display = 'flex';
+            titulo.textContent = nomeTime;
+            conteudo.innerHTML = '<div class="loading">Buscando últimos jogos...</div>';
 
-        window.onclick = function(event) {
-            const modal = document.getElementById('modal-detalhes');
-            if (event.target === modal) fecharModal();
-        }
-    </script>
-</body>
-</html>
+            try {
+                const resposta = await fetch(`/api/time/${timeId}/jogos`);
+                const jogos = await resposta.json();
+                if (jogos.erro) {
+                    conteudo.innerHTML = `<div class="loading" style="color: #ff5252;">Erro: ${jogos.detalhe || jogos.erro}</div>`;
+                    return;
+                }
+                if (jogos.length === 0) {
+                    conteudo.innerHTML = '<div class="loading">Nenhum jogo recente encontrado.</div>';
+                
