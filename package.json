@@ -1,12 +1,13 @@
 {
-  "name": "meu-app-esportes",
+  "name": "analises-esportivas",
   "version": "1.0.0",
-  "description": "App de esportes estilo SofaScore",
+  "description": "App de esportes",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "axios": "^1.7.2"
   }
 }
