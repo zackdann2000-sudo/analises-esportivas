@@ -5,42 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Análises Esportivas</title>
     <style>
+        /* Variáveis de Tema */
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #ffffff;
+            --text-muted: #aaaaaa;
+            --border-color: #333333;
+            --header-bg: #1e1e1e;
+            --league-bg: #1a1a1a;
+        }
+
+        .light-mode {
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #121212;
+            --text-muted: #666666;
+            --border-color: #dddddd;
+            --header-bg: #ffffff;
+            --league-bg: #eeeeee;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background-color: #121212; color: #ffffff; padding-bottom: 60px; }
-        header { background-color: #1e1e1e; padding: 15px; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        body { background-color: var(--bg-color); color: var(--text-color); padding-bottom: 60px; transition: background 0.3s, color 0.3s; }
+        header { background-color: var(--header-bg); padding: 15px; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
         header h1 { font-size: 18px; color: #00e676; font-weight: bold; }
-        .tabs { display: flex; overflow-x: auto; background-color: #1e1e1e; padding: 10px 15px; gap: 15px; border-bottom: 1px solid #333; }
-        .tabs span { font-size: 14px; color: #aaa; white-space: nowrap; cursor: pointer; padding-bottom: 5px; }
+        .icon-btn { background: none; border: none; color: var(--text-color); font-size: 20px; cursor: pointer; }
+        
+        .tabs { display: flex; overflow-x: auto; background-color: var(--header-bg); padding: 10px 15px; gap: 15px; border-bottom: 1px solid var(--border-color); }
+        .tabs span { font-size: 14px; color: var(--text-muted); white-space: nowrap; cursor: pointer; padding-bottom: 5px; }
         .tabs span.active { color: #00e676; border-bottom: 2px solid #00e676; font-weight: bold; }
+        
         .match-list { padding: 10px 0; }
-        .league-title { font-size: 12px; color: #888; padding: 10px 15px; text-transform: uppercase; font-weight: bold; background-color: #1a1a1a; margin-top: 10px; }
-        .match-card { background-color: #1e1e1e; margin: 5px 10px; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; }
-        .match-card:active { background-color: #2a2a2a; }
-        .match-header { display: flex; justify-content: space-between; font-size: 11px; color: #888; }
+        .league-title { font-size: 12px; color: var(--text-muted); padding: 10px 15px; text-transform: uppercase; font-weight: bold; background-color: var(--league-bg); margin-top: 10px; }
+        
+        .match-card { background-color: var(--card-bg); margin: 5px 10px; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; position: relative; border: 1px solid var(--border-color); }
+        .match-card:active { opacity: 0.8; }
+        .match-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
         .match-status { font-weight: bold; }
         .status-AO-VIVO { color: #00e676; }
         .status-INTERVALO { color: #ffb300; }
-        .status-FINALIZADO { color: #888; }
+        .status-FINALIZADO { color: var(--text-muted); }
         .status-AGENDADO { color: #42a5f5; }
+        
         .teams { display: flex; flex-direction: column; gap: 8px; }
         .team-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
-        .team-name { font-weight: 500; }
-        .score { font-weight: bold; font-size: 16px; background-color: #333; padding: 2px 8px; border-radius: 4px; }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #1e1e1e; display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #333; z-index: 200; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #888; cursor: pointer; gap: 4px; }
+        .team-name { font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .score { font-weight: bold; font-size: 16px; background-color: var(--border-color); padding: 2px 8px; border-radius: 4px; }
+        
+        /* Botão de Favorito */
+        .fav-btn { cursor: pointer; font-size: 18px; color: #666; transition: color 0.2s; }
+        .fav-btn.active { color: #ffca28; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--header-bg); display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid var(--border-color); z-index: 200; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-muted); cursor: pointer; gap: 4px; }
         .nav-item.active { color: #00e676; }
         .nav-item span { font-size: 20px; }
-        .loading { text-align: center; padding: 20px; color: #aaa; }
-        .empty-message { text-align: center; padding: 40px 20px; color: #888; }
+        
+        .loading { text-align: center; padding: 20px; color: var(--text-muted); }
+        .empty-message { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 
-        /* Estilos do Modal */
+        /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; }
-        .modal-content { background-color: #1e1e1e; width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; position: relative; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .modal-content { background-color: var(--card-bg); width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
         .modal-header h2 { font-size: 16px; color: #00e676; }
-        .close-btn { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
-        .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #2a2a2a; font-size: 14px; }
-        .stat-label { color: #aaa; }
+        .close-btn { background: none; border: none; color: var(--text-color); font-size: 24px; cursor: pointer; }
+        .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+        .stat-label { color: var(--text-muted); }
         .stat-value { font-weight: bold; }
     </style>
 </head>
@@ -48,7 +80,10 @@
 
     <header>
         <h1>Análises Esportivas</h1>
-        <button class="icon-btn">🔍</button>
+        <div style="display: flex; gap: 15px;">
+            <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
+            <button class="icon-btn">🔍</button>
+        </div>
     </header>
 
     <div class="tabs">
@@ -84,6 +119,38 @@
     <script>
         let todosOsJogos = [];
         let abaAtual = 'AO VIVO';
+        let favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || [];
+
+        // Função para alternar Tema
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+            localStorage.setItem('temaClaro', isLight ? 'true' : 'false');
+        }
+
+        // Carregar tema salvo
+        if (localStorage.getItem('temaClaro') === 'true') {
+            document.body.classList.add('light-mode');
+            document.getElementById('theme-btn').textContent = '🌙';
+        } else {
+            document.getElementById('theme-btn').textContent = '☀️';
+        }
+
+        // Função para favoritar time
+        function toggleFavorito(event, timeCasa, timeFora) {
+            event.stopPropagation(); // Impede de abrir o modal do jogo
+            
+            const indexCasa = favoritos.indexOf(timeCasa);
+            const indexFora = favoritos.indexOf(timeFora);
+
+            if (indexCasa > -1) favoritos.splice(indexCasa, 1);
+            else if (indexFora > -1) favoritos.splice(indexFora, 1);
+            else favoritos.push(timeCasa, timeFora); // Favorita os dois times da partida
+
+            localStorage.setItem('favoritosEsportes', JSON.stringify(favoritos));
+            renderizarJogos(); // Recarrega a tela
+        }
 
         async function carregarJogos() {
             try {
@@ -127,11 +194,13 @@
                 if (abaAtual === 'AO VIVO') return jogo.statusOriginal === 'IN_PLAY' || jogo.statusOriginal === 'PAUSED';
                 if (abaAtual === 'HOJE') return dataJogoStr === dataHojeStr;
                 if (abaAtual === 'AMANHA') return dataJogoStr === dataAmanhaStr;
-                return false; // Favoritos
+                if (abaAtual === 'FAVORITOS') return favoritos.includes(jogo.timeCasa) || favoritos.includes(jogo.timeFora);
+                return false;
             });
 
             if (jogosFiltrados.length === 0) {
-                container.innerHTML = `<div class="empty-message">Nenhum jogo encontrado para a aba "${abaAtual}".</div>`;
+                const msg = abaAtual === 'FAVORITOS' ? 'Você ainda não favoritou nenhum time. Clique na estrela ⭐ nos jogos.' : `Nenhum jogo encontrado para a aba "${abaAtual}".`;
+                container.innerHTML = `<div class="empty-message">${msg}</div>`;
                 return;
             }
 
@@ -153,6 +222,11 @@
                     const placarFora = jogo.golsFora !== null ? jogo.golsFora : '-';
                     const classeStatus = 'status-' + jogo.statusTraduzido.replace(' ', '-');
                     
+                    // Verifica se é favorito
+                    const isFav = favoritos.includes(jogo.timeCasa) || favoritos.includes(jogo.timeFora);
+                    const estrela = isFav ? '★' : '☆';
+                    const classeEstrela = isFav ? 'fav-btn active' : 'fav-btn';
+
                     const card = document.createElement('div');
                     card.className = 'match-card';
                     card.onclick = () => abrirDetalhes(jogo.id, jogo.timeCasa, jogo.timeFora);
@@ -164,11 +238,17 @@
                         <div class="teams">
                             <div class="team-row">
                                 <span class="team-name">${jogo.timeCasa}</span>
-                                <span class="score">${placarCasa}</span>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <span class="${classeEstrela}" onclick="toggleFavorito(event, '${jogo.timeCasa}', '${jogo.timeFora}')">${estrela}</span>
+                                    <span class="score">${placarCasa}</span>
+                                </div>
                             </div>
                             <div class="team-row">
                                 <span class="team-name">${jogo.timeFora}</span>
-                                <span class="score">${placarFora}</span>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <span class="${classeEstrela}" onclick="toggleFavorito(event, '${jogo.timeCasa}', '${jogo.timeFora}')">${estrela}</span>
+                                    <span class="score">${placarFora}</span>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -204,7 +284,7 @@
                     <div class="stat-row"><span class="stat-label">Cartões (Fora)</span><span class="stat-value">${stats.cartoesFora}</span></div>
                     <div class="stat-row"><span class="stat-label">Substituições (Casa)</span><span class="stat-value">${stats.subsCasa}</span></div>
                     <div class="stat-row"><span class="stat-label">Substituições (Fora)</span><span class="stat-value">${stats.subsFora}</span></div>
-                    <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">* Algumas estatísticas (como escanteios e faltas) podem não estar disponíveis no plano gratuito da API.</p>
+                    <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">* Algumas estatísticas podem não estar disponíveis no plano gratuito da API.</p>
                 `;
 
             } catch (erro) {
@@ -216,15 +296,12 @@
             document.getElementById('modal-detalhes').style.display = 'none';
         }
 
-        // Fecha o modal se clicar fora dele
         window.onclick = function(event) {
             const modal = document.getElementById('modal-detalhes');
-            if (event.target === modal) {
-                fecharModal();
-            }
+            if (event.target === modal) fecharModal();
         }
 
         carregarJogos();
     </script>
 </body>
-            </html>
+</html>
