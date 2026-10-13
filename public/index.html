@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Bloqueia o cache para o celular sempre baixar a versão nova -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <title>Análises Esportivas</title>
     
     <!-- SCRIPT DE TEMA NO TOPO PARA NÃO PISCAR -->
@@ -158,17 +155,20 @@
 
         try { favoritos = JSON.parse(localStorage.getItem('favoritosEsportes')) || []; } catch(e) {}
 
-        // Inicializa
         window.addEventListener('DOMContentLoaded', () => {
-            const isLight = document.documentElement.classList.contains('light-mode');
-            document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+            const themeBtn = document.getElementById('theme-btn');
+            if (themeBtn) {
+                const isLight = document.documentElement.classList.contains('light-mode');
+                themeBtn.textContent = isLight ? '🌙' : '☀️';
+            }
             carregarJogos();
         });
 
         function toggleTheme(event) {
             event.preventDefault();
             const isLight = document.documentElement.classList.toggle('light-mode');
-            document.getElementById('theme-btn').textContent = isLight ? '🌙' : '☀️';
+            const themeBtn = document.getElementById('theme-btn');
+            if (themeBtn) themeBtn.textContent = isLight ? '🌙' : '☀️';
             try { localStorage.setItem('temaClaro', isLight ? 'true' : 'false'); } catch(e) {}
         }
 
@@ -205,17 +205,25 @@
         }
 
         async function carregarJogos() {
+            const container = document.getElementById('lista-jogos');
             try {
+                // Avisa o usuário sobre o Cold Start do Render
+                container.innerHTML = '<div class="loading">Carregando jogos...<br><small>(Se demorar, o servidor gratuito está acordando)</small></div>';
+                
                 const resposta = await fetch('/api/jogos');
+                if (!resposta.ok) {
+                    throw new Error(`Erro HTTP ${resposta.status}`);
+                }
                 const dados = await resposta.json();
+                
                 if (dados.erro) {
-                    document.getElementById('lista-jogos').innerHTML = `<div class="loading" style="color: #ff5252;">Erro: ${dados.detalhe || dados.erro}</div>`;
+                    container.innerHTML = `<div class="loading" style="color: #ff5252;">Erro da API: ${dados.detalhe || dados.erro}</div>`;
                     return;
                 }
                 todosOsJogos = dados;
                 renderizarJogos();
             } catch (erro) {
-                document.getElementById('lista-jogos').innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao conectar.</div>';
+                container.innerHTML = `<div class="loading" style="color: #ff5252;">Erro ao conectar.<br><small>Motivo: ${erro.message}</small><br><br><button onclick="carregarJogos()" style="padding: 8px 15px; border-radius: 5px; border: none; background: #00e676; color: #000; font-weight: bold;">Tentar Novamente</button></div>`;
             }
         }
 
@@ -228,6 +236,7 @@
 
         function renderizarJogos() {
             const container = document.getElementById('lista-jogos');
+            if (!container) return;
             container.innerHTML = '';
 
             const agora = new Date();
@@ -253,7 +262,7 @@
             });
 
             if (jogosFiltrados.length === 0) {
-                const msg = termoBusca ? `Nenhum jogo encontrado para "${termoBusca}".` : `Nenhum jogo na aba "${abaAtual}". Se for "AO VIVO", pode não haver jogos agora.`;
+                const msg = termoBusca ? `Nenhum jogo encontrado para "${termoBusca}".` : `Nenhum jogo na aba "${abaAtual}".`;
                 container.innerHTML = `<div class="empty-message">${msg}</div>`;
                 return;
             }
@@ -334,7 +343,6 @@
                     <div class="stat-row"><span class="stat-label">Cartões (Fora)</span><span class="stat-value">${stats.cartoesFora}</span></div>
                     <div class="stat-row"><span class="stat-label">Substituições (Casa)</span><span class="stat-value">${stats.subsCasa}</span></div>
                     <div class="stat-row"><span class="stat-label">Substituições (Fora)</span><span class="stat-value">${stats.subsFora}</span></div>
-                    <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">* Dados limitados no plano gratuito da API.</p>
                 `;
             } catch (erro) {
                 conteudo.innerHTML = '<div class="loading" style="color: #ff5252;">Erro ao carregar.</div>';
@@ -353,11 +361,4 @@
 
             try {
                 const resposta = await fetch(`/api/time/${timeId}/jogos`);
-                const jogos = await resposta.json();
-                if (jogos.erro) {
-                    conteudo.innerHTML = `<div class="loading" style="color: #ff5252;">Erro: ${jogos.detalhe || jogos.erro}</div>`;
-                    return;
-                }
-                if (jogos.length === 0) {
-                    conteudo.innerHTML = '<div class="loading">Nenhum jogo recente encontrado.</div>';
-                
+            
