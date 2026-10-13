@@ -10,6 +10,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Rota 1: Lista todos os jogos
 app.get('/api/jogos', async (req, res) => {
   try {
     const apiKey = process.env.FOOTBALL_API_KEY;
@@ -49,7 +50,38 @@ app.get('/api/jogos', async (req, res) => {
   }
 });
 
-// NOVA ROTA: Últimos jogos de um time específico
+// Rota 2: Detalhes de uma partida específica (RESTAURADA)
+app.get('/api/jogo/:id', async (req, res) => {
+  try {
+    const apiKey = process.env.FOOTBALL_API_KEY;
+    const idJogo = req.params.id;
+
+    const resposta = await axios.get(`https://api.football-data.org/v4/matches/${idJogo}`, {
+      headers: { 'X-Auth-Token': apiKey }
+    });
+
+    const jogo = resposta.data;
+    const estatisticas = {
+      timeCasa: jogo.homeTeam.name,
+      timeFora: jogo.awayTeam.name,
+      golsCasa: jogo.score.fullTime.home || 0,
+      golsFora: jogo.score.fullTime.away || 0,
+      arbitro: jogo.referees && jogo.referees[0] ? jogo.referees[0].name : 'Não informado',
+      estadio: jogo.venue || 'Não informado',
+      publico: jogo.attendance || 'Não informado',
+      cartoesCasa: jogo.bookings ? jogo.bookings.filter(b => b.team.id === jogo.homeTeam.id).length : 0,
+      cartoesFora: jogo.bookings ? jogo.bookings.filter(b => b.team.id === jogo.awayTeam.id).length : 0,
+      subsCasa: jogo.substitutions ? jogo.substitutions.filter(s => s.team.id === jogo.homeTeam.id).length : 0,
+      subsFora: jogo.substitutions ? jogo.substitutions.filter(s => s.team.id === jogo.awayTeam.id).length : 0,
+    };
+
+    res.json(estatisticas);
+  } catch (erro) {
+    res.status(500).json({ erro: 'Falha ao buscar detalhes', detalhe: erro.message });
+  }
+});
+
+// Rota 3: Últimos jogos de um time específico
 app.get('/api/time/:id/jogos', async (req, res) => {
   try {
     const apiKey = process.env.FOOTBALL_API_KEY;
