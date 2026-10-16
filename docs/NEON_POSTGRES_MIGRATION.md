@@ -8,6 +8,10 @@ Esta etapa prepara o esquema do banco; ela **não** troca ainda o adaptador JSON
 - Manter a URL e a senha fora do Git, do código do navegador e das mensagens públicas.
 - Fazer backup do armazenamento existente antes de qualquer migração de dados.
 
+## Diagnóstico atual
+
+Depois do deploy, abra `/api/status/database`. O endpoint informa se `DATABASE_URL` está definida e deixa explícito que o armazenamento ainda é JSON temporário. Ele não revela a URL nem a senha e **não** testa uma conexão PostgreSQL real.
+
 ## Esquema inicial
 O arquivo `db/migrations/001_initial_schema.sql` cria:
 - `app_users`: contas e hashes de senha;
