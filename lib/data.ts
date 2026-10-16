@@ -44,8 +44,8 @@ export async function getLive() {
         const byId = new Map(detailed.map((m) => [m.id, m]))
         return { data: data.map((m) => byId.get(m.id) ?? m), source: 'api' as DataSource }
       }
-      // An empty live response is valid: don't replace it with fixtures from another date.
-      return { data, source: 'api' as DataSource }
+      if (data.length) return { data, source: 'api' as DataSource }
+      // If this provider has no live feed, try the next real provider for the same date.
     } catch (err) {
       console.error('[Match Lens] API-Football ao vivo falhou:', (err as Error).message)
     }
