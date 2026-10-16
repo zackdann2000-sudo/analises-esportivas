@@ -37,8 +37,8 @@ export async function requireAdmin() {
 
 export const sessionCookieOptions = (expires: Date) => ({
   httpOnly: true,
-  secure: true,
-  sameSite: 'none' as const,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
   path: '/',
   expires,
 })
