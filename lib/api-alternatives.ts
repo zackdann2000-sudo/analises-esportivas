@@ -33,9 +33,9 @@ function normalizeFootballData(item: any): Match {
   const away = item.awayTeam ?? {}
   const comp = item.competition ?? {}
   const state = status(item.status)
-  const finished = ['FT', 'AET', 'PEN'].includes(state)
-  const scoreHome = finished ? item.score?.fullTime?.home : null
-  const scoreAway = finished ? item.score?.fullTime?.away : null
+  // O placar também pode estar disponível durante a partida; não o esconda só porque ainda não terminou.
+  const scoreHome = item.score?.fullTime?.home ?? item.score?.regularTime?.home ?? null
+  const scoreAway = item.score?.fullTime?.away ?? item.score?.regularTime?.away ?? null
   return {
     id: `fd-${item.id}`,
     league: { id: Number(comp.id ?? 0), name: comp.name ?? 'Competição', country: comp.area?.name ?? '', logo: comp.emblem ?? '' },
@@ -114,13 +114,17 @@ export async function alternativeMatches(date: string, live = false): Promise<{ 
   const list = connections()
   const order: Provider[] = ['sportmonks', 'football-data']
   const ordered = order.flatMap((provider) => list.filter((c) => c.provider === provider))
+  let emptyResult: { data: Match[]; provider: Provider } | null = null
   for (const connection of ordered) {
     try {
       const data = await fetchProvider(connection, date, live)
-      return { data, provider: connection.provider }
+      // Uma resposta válida sem jogos não deve impedir a tentativa de outro provedor.
+      if (data.length > 0) return { data, provider: connection.provider }
+      emptyResult = { data, provider: connection.provider }
     } catch (error) {
       console.error(`[Match Lens] ${connection.provider} falhou:`, (error as Error).message)
     }
   }
-  return null
+  // Se todas responderam sem jogos, informa que a fonte respondeu; se todas falharam, null.
+  return emptyResult
 }
