@@ -91,7 +91,7 @@ function normalizeSportmonks(item: any): Match {
     const raw = String(item.starting_at).trim()
     // Sportmonks may return a wall-clock timestamp in the requested timezone without an offset.
     // Interpret that value as São Paulo time instead of accidentally treating it as UTC.
-    const hasTimezone = /(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(raw)
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)
     const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T')
     const parsed = new Date(hasTimezone ? normalized : normalized + '-03:00')
     return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString()
