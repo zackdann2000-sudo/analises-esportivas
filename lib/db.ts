@@ -78,7 +78,7 @@ function ensureSeed(store: Store) {
   }
   const email = process.env.RADARGOL_ADMIN_EMAIL?.trim().toLowerCase()
   const password = process.env.RADARGOL_ADMIN_PASSWORD
-  if (!email || !password || password.length < 12 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) return changed
+  if (!email || !password || password.length < 12 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return changed
   if (store.users.some((u) => u.email === email)) return changed
   store.users.push({
     id: crypto.randomUUID(),
