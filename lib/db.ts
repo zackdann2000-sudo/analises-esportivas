@@ -60,24 +60,31 @@ const DAY = 86_400_000
 const DATA_DIR = process.env.RADARGOL_DATA_DIR ?? path.join(os.tmpdir(), 'radargol-data')
 const DATA_FILE = path.join(DATA_DIR, 'db.json')
 
-const SEED_ADMIN = {
-  email: 'testedosteste200@gmail.com',
-  name: 'Administrador',
-  passwordHash:
-    'scrypt$cae18bb57a5e3f24cf9a89a0691aa40e$1944a96a4fd3e798de996c719d4b9d0115904b39ecc4c23c1b121b346c13dc1231bc064d1582ba1a34346a645f5150f89367d93b0869257104de7b6ded10b694',
-}
+// Configure RADARGOL_ADMIN_EMAIL and RADARGOL_ADMIN_PASSWORD in the server environment.
+const LEGACY_SEED_EMAIL = 'testedosteste200@gmail.com'
+const LEGACY_SEED_HASH = 'scrypt$cae18bb57a5e3f24cf9a89a0691aa40e$1944a96a4fd3e798de996c719d4b9d0115904b39ecc4c23c1b121b346c13dc1231bc064d1582ba1a34346a645f5150f89367d93b0869257104de7b6ded10b694'
 
 function emptyStore(): Store {
   return { users: [], sessions: [], settings: {} }
 }
 
 function ensureSeed(store: Store) {
-  if (store.users.some((u) => u.email === SEED_ADMIN.email)) return false
+  let changed = false
+  const legacy = store.users.find((u) => u.email === LEGACY_SEED_EMAIL && u.passwordHash === LEGACY_SEED_HASH)
+  if (legacy) {
+    store.users = store.users.filter((u) => u.id !== legacy.id)
+    store.sessions = store.sessions.filter((s) => s.userId !== legacy.id)
+    changed = true
+  }
+  const email = process.env.RADARGOL_ADMIN_EMAIL?.trim().toLowerCase()
+  const password = process.env.RADARGOL_ADMIN_PASSWORD
+  if (!email || !password || password.length < 12 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) return changed
+  if (store.users.some((u) => u.email === email)) return changed
   store.users.push({
     id: crypto.randomUUID(),
-    name: SEED_ADMIN.name,
-    email: SEED_ADMIN.email,
-    passwordHash: SEED_ADMIN.passwordHash,
+    name: 'Administrador',
+    email,
+    passwordHash: hashPassword(password),
     role: 'admin',
     plan: 'admin',
     accessUntil: null,
