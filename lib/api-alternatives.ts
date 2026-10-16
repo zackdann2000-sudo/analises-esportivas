@@ -73,7 +73,7 @@ function normalizeSportmonks(item: any): Match {
     id: `sm-${item.id}`,
     league: { id: Number(league.id ?? 0), name: league.name ?? 'Competição', country: league.country?.name ?? '', logo: league.image_path ?? '' },
     round: item.round?.name ?? null,
-    kickoff: item.starting_at ? new Date(item.starting_at.replace(' ', 'T') + (item.starting_at.endsWith('Z') ? '' : 'Z')).toISOString() : new Date().toISOString(),
+    kickoff: item.starting_at ? (() => { const raw = String(item.starting_at); const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z'); return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString() })() : '',
     status: state,
     minute: item.periods?.find((p: any) => p.ticking)?.minutes ?? null,
     home: { id: Number(home.id ?? 0), name: homeName, short: shortName(homeName), logo: home.image_path ?? '' },
@@ -106,7 +106,7 @@ async function fetchProvider(c: Connection, date: string, live: boolean): Promis
   if (!res.ok) throw new Error(`Sportmonks HTTP ${res.status}`)
   const json = await res.json()
   if (json?.message && !Array.isArray(json?.data)) throw new Error(String(json.message))
-  return (Array.isArray(json.data) ? json.data : []).map(normalizeSportmonks)
+  return (Array.isArray(json.data) ? json.data : []).map(normalizeSportmonks).filter((match: Match) => Boolean(match.kickoff))
 }
 
 /** Só retorna dados vindos de provedores reais configurados no painel. */
