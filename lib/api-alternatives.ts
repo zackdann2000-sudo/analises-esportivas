@@ -95,7 +95,7 @@ async function fetchProvider(c: Connection, date: string, live: boolean): Promis
     const res = await fetch(url, { headers: { 'X-Auth-Token': c.key }, cache: 'no-store', signal: AbortSignal.timeout(12_000) })
     if (!res.ok) throw new Error(`Football-Data.org HTTP ${res.status}`)
     const json = await res.json()
-    return (Array.isArray(json.matches) ? json.matches : []).map(normalizeFootballData)
+    return (Array.isArray(json.matches) ? json.matches : []).map(normalizeFootballData).filter((match: Match) => Boolean(match.kickoff))
   }
 
   const url = new URL(live ? 'https://api.sportmonks.com/v3/football/livescores' : `https://api.sportmonks.com/v3/football/fixtures/date/${date}`)
