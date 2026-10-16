@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 interface StatusRes {
   provider: string
   configured: boolean
-  source: 'api' | 'demo'
+  source: 'api' | 'demo' | 'unavailable'
 }
 
 export function DataSourceBadge({ compact = false }: { compact?: boolean }) {
@@ -26,7 +26,7 @@ export function DataSourceBadge({ compact = false }: { compact?: boolean }) {
         )}
       >
         <span className={cn('size-1.5 rounded-full', real ? 'bg-success' : 'bg-warning')} />
-        {real ? 'Dados reais' : 'Modo demonstração'}
+        {real ? 'Dados reais' : 'API indisponível'}
       </Link>
     )
   }
@@ -39,7 +39,7 @@ export function DataSourceBadge({ compact = false }: { compact?: boolean }) {
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {real
           ? `Conectado à ${data.provider}. Placar e estatísticas em tempo real.`
-          : 'Exibindo simulação em tempo real. Conecte sua chave da API-Football para dados oficiais.'}
+          : 'Nenhum dado fictício será exibido. Verifique a chave e o plano da API em Gerenciar APIs.'}
       </p>
       {!real && (
         <Link href="/admin?tab=apis" className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">
