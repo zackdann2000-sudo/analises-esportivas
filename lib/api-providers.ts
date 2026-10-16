@@ -42,7 +42,7 @@ export const API_PROVIDERS: ApiProvider[] = [
     description: 'Jogos, placares e dados avançados conforme o plano contratado.',
     docsUrl: 'https://my.sportmonks.com',
     keyHint: 'My Sportmonks → API Tokens',
-    feedsSite: false,
+    feedsSite: true,
   },
   {
     id: 'thesportsdb',
