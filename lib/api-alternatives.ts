@@ -28,12 +28,30 @@ const status = (value: unknown): MatchStatus => statusMap[String(value ?? '').to
 const shortName = (name: string) => name.replace(/[^A-Za-zÀ-ú]/g, '').slice(0, 3).toUpperCase()
 const emptyStats = null
 
+function shiftDate(date: string, offset: number) {
+  const [year, month, day] = date.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day + offset)).toISOString().slice(0, 10)
+}
+
+function localDateKey(value: string) {
+  const parsed = new Date(value)
+  if (!value || Number.isNaN(parsed.getTime())) return ''
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(parsed)
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${get('year')}-${get('month')}-${get('day')}`
+}
+
+function isOnSelectedLocalDate(match: Match, date: string) {
+  return localDateKey(match.kickoff) === date
+}
+
 function normalizeFootballData(item: any): Match {
   const home = item.homeTeam ?? {}
   const away = item.awayTeam ?? {}
   const comp = item.competition ?? {}
   const state = status(item.status)
-  // O placar também pode estar disponível durante a partida; não o esconda só porque ainda não terminou.
   const scoreHome = item.score?.fullTime?.home ?? item.score?.regularTime?.home ?? null
   const scoreAway = item.score?.fullTime?.away ?? item.score?.regularTime?.away ?? null
   return {
@@ -69,11 +87,16 @@ function normalizeSportmonks(item: any): Match {
   const league = item.league ?? {}
   const homeName = home.name ?? home.short_code ?? 'Time não informado'
   const awayName = away.name ?? away.short_code ?? 'Time não informado'
+  const kickoff = item.starting_at ? (() => {
+    const raw = String(item.starting_at)
+    const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z')
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString()
+  })() : ''
   return {
     id: `sm-${item.id}`,
     league: { id: Number(league.id ?? 0), name: league.name ?? 'Competição', country: league.country?.name ?? '', logo: league.image_path ?? '' },
     round: item.round?.name ?? null,
-    kickoff: item.starting_at ? (() => { const raw = String(item.starting_at); const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z'); return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString() })() : '',
+    kickoff,
     status: state,
     minute: item.periods?.find((p: any) => p.ticking)?.minutes ?? null,
     home: { id: Number(home.id ?? 0), name: homeName, short: shortName(homeName), logo: home.image_path ?? '' },
@@ -89,13 +112,18 @@ async function fetchProvider(c: Connection, date: string, live: boolean): Promis
     const url = new URL('https://api.football-data.org/v4/matches')
     if (live) url.searchParams.set('status', 'IN_PLAY,PAUSED')
     else {
+      // The API's date filters use UTC days; fetch both UTC dates that can overlap
+      // the selected São Paulo day, then keep all match statuses for that local date.
       url.searchParams.set('dateFrom', date)
-      url.searchParams.set('dateTo', date)
+      url.searchParams.set('dateTo', shiftDate(date, 1))
     }
     const res = await fetch(url, { headers: { 'X-Auth-Token': c.key }, cache: 'no-store', signal: AbortSignal.timeout(12_000) })
     if (!res.ok) throw new Error(`Football-Data.org HTTP ${res.status}`)
     const json = await res.json()
-    return (Array.isArray(json.matches) ? json.matches : []).map(normalizeFootballData).filter((match: Match) => Boolean(match.kickoff))
+    const matches = (Array.isArray(json.matches) ? json.matches : [])
+      .map(normalizeFootballData)
+      .filter((match: Match) => Boolean(match.kickoff))
+    return live ? matches : matches.filter((match: Match) => isOnSelectedLocalDate(match, date))
   }
 
   const url = new URL(live ? 'https://api.sportmonks.com/v3/football/livescores' : `https://api.sportmonks.com/v3/football/fixtures/date/${date}`)
@@ -106,7 +134,10 @@ async function fetchProvider(c: Connection, date: string, live: boolean): Promis
   if (!res.ok) throw new Error(`Sportmonks HTTP ${res.status}`)
   const json = await res.json()
   if (json?.message && !Array.isArray(json?.data)) throw new Error(String(json.message))
-  return (Array.isArray(json.data) ? json.data : []).map(normalizeSportmonks).filter((match: Match) => Boolean(match.kickoff))
+  const matches = (Array.isArray(json.data) ? json.data : [])
+    .map(normalizeSportmonks)
+    .filter((match: Match) => Boolean(match.kickoff))
+  return live ? matches : matches.filter((match: Match) => isOnSelectedLocalDate(match, date))
 }
 
 /** Só retorna dados vindos de provedores reais configurados no painel. */
@@ -118,13 +149,14 @@ export async function alternativeMatches(date: string, live = false): Promise<{ 
   for (const connection of ordered) {
     try {
       const data = await fetchProvider(connection, date, live)
-      // Uma resposta válida sem jogos não deve impedir a tentativa de outro provedor.
-      if (data.length > 0) return { data, provider: connection.provider }
+      if (data.length > 0) {
+        data.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+        return { data, provider: connection.provider }
+      }
       emptyResult = { data, provider: connection.provider }
     } catch (error) {
       console.error(`[Match Lens] ${connection.provider} falhou:`, (error as Error).message)
     }
   }
-  // Se todas responderam sem jogos, informa que a fonte respondeu; se todas falharam, null.
   return emptyResult
 }
