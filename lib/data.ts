@@ -8,72 +8,92 @@ import {
   apiTeam,
   hasApiKey,
 } from './api-football'
-import {
-  getDemoLeague,
-  getDemoLive,
-  getDemoMatch,
-  getDemoMatchLite,
-  getDemoMatches,
-  getDemoTeam,
-} from './demo'
+import { alternativeMatches, configuredAlternativeProviders } from './api-alternatives'
 import type { DataSource, LeagueDetail, Match, MatchDetail, TeamDetail } from './types'
 
-async function withFallback<T>(real: () => Promise<T>, demo: () => T): Promise<{ data: T; source: DataSource }> {
-  if (!hasApiKey()) return { data: demo(), source: 'demo' }
-  try {
-    return { data: await real(), source: 'api' }
-  } catch (err) {
-    console.error('[v0] API-Football falhou, usando demonstração:', (err as Error).message)
-    return { data: demo(), source: 'demo' }
-  }
+const todayKey = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${get('year')}-${get('month')}-${get('day')}`
 }
 
-export function getMatches(date: string) {
-  return withFallback(() => apiMatchesByDate(date), () => getDemoMatches(date))
+async function matchesForDate(date: string): Promise<{ data: Match[]; source: DataSource }> {
+  if (hasApiKey()) {
+    try {
+      return { data: await apiMatchesByDate(date), source: 'api' }
+    } catch (err) {
+      console.error('[Match Lens] API-Football falhou; tentando outras fontes:', (err as Error).message)
+    }
+  }
+  const alternative = await alternativeMatches(date)
+  if (alternative) return { data: alternative.data, source: 'api' }
+  return { data: [], source: 'unavailable' }
+}
+
+export async function getMatches(date: string) {
+  return matchesForDate(date)
 }
 
 export async function getLive() {
-  const res = await withFallback(apiLive, () => getDemoLive())
-  if (res.source === 'api' && res.data.length) {
-    const ids = res.data.slice(0, 20).map((m) => m.id)
-    const detailed = await apiMatchesByIds(ids).catch(() => [])
-    const byId = new Map(detailed.map((m) => [m.id, m]))
-    res.data = res.data.map((m) => byId.get(m.id) ?? m)
+  if (hasApiKey()) {
+    try {
+      const data = await apiLive()
+      if (data.length) {
+        const ids = data.slice(0, 20).map((m) => m.id)
+        const detailed = await apiMatchesByIds(ids).catch(() => [])
+        const byId = new Map(detailed.map((m) => [m.id, m]))
+        return { data: data.map((m) => byId.get(m.id) ?? m), source: 'api' as DataSource }
+      }
+      if (data.length) return { data, source: 'api' as DataSource }
+      // If this provider has no live feed, try the next real provider for the same date.
+    } catch (err) {
+      console.error('[Match Lens] API-Football ao vivo falhou:', (err as Error).message)
+    }
   }
-  return res
+  const alternative = await alternativeMatches(todayKey(), true)
+  if (alternative) return { data: alternative.data, source: 'api' as DataSource }
+  return { data: [], source: 'unavailable' as DataSource }
 }
 
 export async function getMatchesByIds(ids: string[]) {
-  const demoIds = ids.filter((id) => id.startsWith('d-'))
-  const apiIds = ids.filter((id) => !id.startsWith('d-'))
-  const demo = demoIds.map((id) => getDemoMatchLite(id)).filter(Boolean) as Match[]
-  const real = apiIds.length && hasApiKey() ? await apiMatchesByIds(apiIds).catch(() => []) : []
-  return [...demo, ...real]
+  const apiIds = ids.filter((id) => !id.startsWith('d-') && !id.startsWith('fd-') && !id.startsWith('sm-'))
+  if (!apiIds.length || !hasApiKey()) return []
+  return apiMatchesByIds(apiIds).catch(() => [])
 }
 
 export async function getMatch(id: string): Promise<MatchDetail | null> {
-  if (id.startsWith('d-')) return getDemoMatch(id)
-  if (!hasApiKey()) return null
+  if (id.startsWith('d-') || id.startsWith('fd-') || id.startsWith('sm-') || !hasApiKey()) return null
   try {
     return await apiMatch(id)
   } catch (err) {
-    console.error('[v0] Falha ao buscar partida:', (err as Error).message)
+    console.error('[Match Lens] Falha ao buscar detalhes da partida:', (err as Error).message)
     return null
   }
 }
 
 export async function getTeam(id: number): Promise<TeamDetail | null> {
-  const res = await withFallback(() => apiTeam(id), () => getDemoTeam(id))
-  return res.data ?? getDemoTeam(id)
+  if (!hasApiKey()) return null
+  try {
+    return await apiTeam(id)
+  } catch (err) {
+    console.error('[Match Lens] Falha ao buscar time:', (err as Error).message)
+    return null
+  }
 }
 
 export async function getLeague(id: number): Promise<LeagueDetail | null> {
-  const res = await withFallback(() => apiLeague(id), () => getDemoLeague(id))
-  return res.data ?? getDemoLeague(id)
+  if (!hasApiKey()) return null
+  try {
+    return await apiLeague(id)
+  } catch (err) {
+    console.error('[Match Lens] Falha ao buscar liga:', (err as Error).message)
+    return null
+  }
 }
 
 export async function getTips(date: string) {
   const { data: matches, source } = await getMatches(date)
+  if (source !== 'api') return { date, source, tips: [] }
   const priority = [71, 2, 13, 39, 140, 135, 78, 61]
   const candidates = matches
     .filter((m) => m.status === 'NS' || ['1H', 'HT', '2H'].includes(m.status))
@@ -82,8 +102,10 @@ export async function getTips(date: string) {
       const rb = priority.indexOf(b.league.id)
       return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb)
     })
-    .slice(0, source === 'api' ? 6 : 16)
-  const details = await Promise.all(candidates.map((m) => getMatch(m.id).catch(() => null)))
+    .slice(0, 6)
+  // Only API-Football supports the existing detailed prediction pipeline.
+  const candidatesWithDetails = candidates.filter((m) => !m.id.startsWith('fd-') && !m.id.startsWith('sm-'))
+  const details = await Promise.all(candidatesWithDetails.map((m) => getMatch(m.id).catch(() => null)))
   const tips = details
     .filter((d): d is MatchDetail => Boolean(d))
     .map((d) => {
@@ -96,5 +118,5 @@ export async function getTips(date: string) {
 }
 
 export function currentSource(): DataSource {
-  return hasApiKey() ? 'api' : 'demo'
+  return hasApiKey() || configuredAlternativeProviders().length ? 'api' : 'unavailable'
 }

@@ -12,7 +12,7 @@ export type MatchStatus =
   | 'PST'
   | 'CANC'
 
-export type DataSource = 'api' | 'demo'
+export type DataSource = 'api' | 'demo' | 'unavailable'
 
 export interface LeagueRef {
   id: number

@@ -23,10 +23,10 @@ export const API_PROVIDERS: ApiProvider[] = [
   {
     id: 'football-data',
     label: 'Football-Data.org',
-    description: 'Ligas europeias, jogos, artilharia e tabelas.',
+    description: 'Jogos e resultados de competições disponíveis no plano.',
     docsUrl: 'https://www.football-data.org/client/register',
     keyHint: 'Enviada por e-mail após o cadastro',
-    feedsSite: false,
+    feedsSite: true,
   },
   {
     id: 'the-odds-api',
@@ -39,10 +39,10 @@ export const API_PROVIDERS: ApiProvider[] = [
   {
     id: 'sportmonks',
     label: 'SportMonks',
-    description: 'Dados avançados, xG, odds e mais de 2.500 ligas.',
+    description: 'Jogos, placares e dados avançados conforme o plano contratado.',
     docsUrl: 'https://my.sportmonks.com',
     keyHint: 'My Sportmonks → API Tokens',
-    feedsSite: false,
+    feedsSite: true,
   },
   {
     id: 'thesportsdb',

@@ -35,10 +35,13 @@ export async function requireAdmin() {
   return user
 }
 
+// First-party session cookie: Lax works for normal app navigation and avoids
+// browser restrictions associated with SameSite=None. Secure is required on
+// production HTTPS, but must be disabled for local HTTP development.
 export const sessionCookieOptions = (expires: Date) => ({
   httpOnly: true,
-  secure: true,
-  sameSite: 'none' as const,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
   path: '/',
   expires,
 })
