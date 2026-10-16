@@ -124,7 +124,10 @@ function eventType(e: any): MatchEvent['type'] | null {
   return null
 }
 
-function stats(list: any[]): TeamStats {
+function stats(list: any[]): TeamStats | null {
+  const required = ['Ball Possession', 'Total Shots', 'Shots on Goal', 'Corner Kicks', 'Fouls', 'Offsides', 'Yellow Cards', 'Red Cards', 'Goalkeeper Saves', 'Total passes', 'Passes %']
+  // Do not turn unavailable statistics into false zeroes.
+  if (required.some((type) => !list.some((s: any) => s.type === type && s.value != null))) return null
   const get = (type: string) => list.find((s: any) => s.type === type)?.value
   const num = (v: any) => (v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : Number(v))
   return {
@@ -170,7 +173,11 @@ function normalizeFixture(item: any): Match {
   if (Array.isArray(item.statistics) && item.statistics.length === 2) {
     const h = item.statistics.find((s: any) => s.team.id === homeId)
     const a = item.statistics.find((s: any) => s.team.id === awayId)
-    if (h && a) matchStats = { home: stats(h.statistics), away: stats(a.statistics) }
+    if (h && a) {
+      const homeStats = stats(h.statistics)
+      const awayStats = stats(a.statistics)
+      if (homeStats && awayStats) matchStats = { home: homeStats, away: awayStats }
+    }
   }
 
   return {
