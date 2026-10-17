@@ -35,8 +35,11 @@ if (typeof setInterval !== 'undefined') {
     const now = Date.now()
     for (const [k, v] of attempts) if (v.until < now) attempts.delete(k)
   }, 60_000)
-  // @ts-expect-error - unref existe no Node, não no Edge
-  timer.unref?.()
+
+  // unref só existe no Node; em runtime Edge o timer é ignorado.
+  // O cast evita o erro "Unused '@ts-expect-error' directive" que o tsc reporta
+  // quando a linha seguinte não gera erro de tipo.
+  ;(timer as { unref?: () => void }).unref?.()
 }
 
 function rateLimited(key: string) {
